@@ -1,0 +1,572 @@
+<!doctype html>
+<html class="scroll-smooth" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Jagantara.ai - Command Center</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700;1@0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+    <script id="tailwind-config">
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              background: "#0f172a",
+              surface: "#0b1329",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      html {
+        scroll-padding-top: 88px;
+      }
+      body {
+        background-color: #0b0f19;
+      }
+      .glass-card {
+        background: rgba(15, 23, 42, 0.5);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        transition: all 0.3s ease;
+      }
+      .glass-card:hover {
+        background: rgba(15, 23, 42, 0.7);
+        border-color: rgba(59, 130, 246, 0.4);
+        box-shadow: 0 8px 32px rgba(34, 211, 238, 0.15);
+      }
+      .pro-highlight {
+        border: 2px solid #22d3ee;
+        box-shadow: 0 0 25px rgba(34, 211, 238, 0.15);
+      }
+      .pro-highlight:hover {
+        box-shadow: 0 0 40px rgba(34, 211, 238, 0.25);
+      }
+      .stat-box {
+        animation: slideInUp 0.6s ease;
+      }
+      @keyframes slideInUp {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .pricing-card {
+        animation: fadeInUp 0.6s ease;
+      }
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .metric-counter {
+        font-size: 2.5rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, #06b6d4, #0ea5e9);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+    </style>
+    <script>
+      // Intersection Observer for scroll animations
+      document.addEventListener('DOMContentLoaded', () => {
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              entry.target.style.animation = 'slideInUp 0.6s ease';
+              observer.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.stat-box, .pricing-card').forEach(el => {
+          observer.observe(el);
+        });
+      });
+    </script>
+  </head>
+  <body
+    class="text-gray-200 font-sans min-h-screen flex flex-col antialiased justify-between page-transition"
+  >
+    <nav
+      class="p-5 flex justify-between items-center max-w-7xl mx-auto w-full sticky top-0 z-50"
+    >
+      <a
+        href="/"
+        class="text-2xl font-black gradient-text hover:scale-105 transition-transform duration-300"
+        >✨ Jagantara.ai</a
+      >
+
+      <ul class="hidden md:flex space-x-8 text-sm font-medium">
+        <li>
+          <a
+            class="text-gray-400 hover:text-cyan-400 transition"
+            href="#homepage"
+            >Homepage</a
+          >
+        </li>
+        <li>
+          <a
+            class="text-gray-400 hover:text-cyan-400 transition"
+            href="#pricing"
+            >Pricing</a
+          >
+        </li>
+        <li>
+          <a class="text-gray-400 hover:text-cyan-400 transition" href="#about"
+            >About</a
+          >
+        </li>
+      </ul>
+
+      <div>
+        {% if user %}
+        <span class="mr-4 text-sm text-gray-400"
+          >Hai, <b class="text-cyan-400">{{ user.username }}</b> {% if
+          user.is_premium %}<span class="text-lg">👑</span>{% endif %}</span
+        >
+        <a
+          href="/logout"
+          class="bg-red-500/20 hover:bg-red-500/40 text-red-400 px-4 py-2 rounded-lg text-sm transition border border-red-500/30 hover:border-red-400"
+          >Logout</a
+        >
+        {% else %}
+        <a href="/login" class="text-sm mr-4 hover:text-cyan-400 transition"
+          >Login</a
+        >
+        <a
+          href="/register"
+          class="bg-gradient-to-r from-cyan-400 to-blue-500 hover:shadow-lg hover:shadow-cyan-500/50 text-slate-900 font-bold px-4 py-2 rounded-lg text-sm transition duration-300 transform hover:scale-105"
+          >Register</a
+        >
+        {% endif %}
+      </div>
+    </nav>
+
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 box-border">
+      <!-- Homepage Section -->
+      <section
+        class="py-12 min-h-[calc(100vh-120px)] flex flex-col justify-center"
+        id="homepage"
+      >
+        <!-- Hero Card -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch mb-12 card-animate">
+          <div
+            class="lg:col-span-1 flex items-center gap-4 glass-card p-6 rounded-2xl border border-cyan-500/30 hover:border-cyan-400/50"
+          >
+            <div
+              class="w-16 h-16 rounded-xl bg-cyan-500/20 flex items-center justify-center border border-cyan-500/40 shrink-0 shadow-lg shadow-cyan-500/20"
+            >
+              <span class="text-3xl">🚀</span>
+            </div>
+            <div>
+              <h1
+                class="text-2xl font-black gradient-text"
+              >
+                Jagantara.ai
+              </h1>
+              <div
+                class="h-1.5 w-12 bg-gradient-to-r from-cyan-400 to-blue-500 shadow-[0_0_10px_rgba(34,211,238,0.5)] mt-2 rounded-full"
+              ></div>
+            </div>
+          </div>
+
+          <div
+            class="lg:col-span-2 glass-card p-6 rounded-2xl flex items-center border-cyan-500/20 hover:border-cyan-400/30"
+          >
+            <p class="text-sm md:text-base text-gray-300 leading-relaxed">
+              Jagantara.ai adalah platform analisis keamanan web premium dengan teknologi 
+              <span class="text-cyan-300 font-semibold">AI canggih</span> untuk melindungi 
+              <span class="text-blue-300 font-semibold">kedaulatan digital</span> Anda. 
+              Identifikasi dan analisis ancaman siber secara real-time.
+            </p>
+          </div>
+        </div>
+
+        <!-- Command Center Stats -->
+        <div class="glass-card rounded-2xl p-8 shadow-2xl card-animate" style="animation-delay: 0.1s">
+          <div
+            class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-cyan-500/20 pb-6 mb-8 gap-4"
+          >
+            <div>
+              <h3
+                class="text-lg md:text-xl font-bold text-cyan-300 flex items-center gap-3"
+              >
+                <span
+                  class="w-3 h-3 rounded-full bg-emerald-400 shadow-lg shadow-emerald-400/50 animate-pulse"
+                ></span>
+                Security Command Center
+              </h3>
+              <p class="text-xs text-gray-500 mt-1">
+                Live infrastructure monitoring & real-time analytics
+              </p>
+            </div>
+            <span
+              class="font-mono text-[11px] md:text-xs bg-emerald-500/20 px-4 py-2 rounded-lg text-emerald-400 border border-emerald-500/40 shadow-lg shadow-emerald-500/10 whitespace-nowrap"
+            >
+              ✓ SYSTEM OPERATIONAL
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="stat-box p-6 bg-slate-900/50 border border-cyan-500/20 rounded-xl hover:border-cyan-400/50 transition">
+              <p class="text-[10px] md:text-xs text-gray-500 uppercase tracking-widest font-bold"
+              >
+                🔍 Websites Scanned
+              </p>
+              <p class="metric-counter mt-3">1.4M</p>
+              <p class="text-xs text-gray-600 mt-2">↑ +12% dari bulan lalu</p>
+            </div>
+            <div class="stat-box p-6 bg-slate-900/50 border border-cyan-500/20 rounded-xl hover:border-cyan-400/50 transition" style="animation-delay: 0.1s">
+              <p class="text-[10px] md:text-xs text-gray-500 uppercase tracking-widest font-bold"
+              >
+                🛡️ Threats Blocked
+              </p>
+              <p class="metric-counter mt-3">412K</p>
+              <p class="text-xs text-gray-600 mt-2">Dalam 24 jam terakhir</p>
+            </div>
+            <div class="stat-box p-6 bg-slate-900/50 border border-cyan-500/20 rounded-xl hover:border-cyan-400/50 transition" style="animation-delay: 0.2s">
+              <p class="text-[10px] md:text-xs text-gray-500 uppercase tracking-widest font-bold"
+              >
+                📊 Threat Level
+              </p>
+              <p class="text-3xl md:text-4xl font-extrabold text-emerald-400 mt-3">LOW</p>
+              <p class="text-xs text-gray-600 mt-2">0.02 / 10</p>
+            </div>
+            <div class="stat-box p-6 bg-slate-900/50 border border-cyan-500/20 rounded-xl hover:border-cyan-400/50 transition" style="animation-delay: 0.3s">
+              <p class="text-[10px] md:text-xs text-gray-500 uppercase tracking-widest font-bold"
+              >
+                ⏱️ Uptime Rate
+              </p>
+              <p class="metric-counter mt-3">99.99%</p>
+              <p class="text-xs text-gray-600 mt-2">Sepanjang tahun</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- CTA Button -->
+        <div class="flex justify-center mt-12 card-animate" style="animation-delay: 0.4s">
+          <a
+            href="/login"
+            class="btn-primary group relative flex items-center gap-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black px-10 py-4 rounded-xl text-sm transition-all duration-300 hover:shadow-2xl hover:shadow-cyan-500/40 hover:scale-[1.05] shadow-lg shadow-cyan-500/30"
+          >
+            🚀 Mulai Analisis Sekarang
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="2.5"
+              stroke="currentColor"
+              class="w-5 h-5 transform group-hover:translate-x-2 transition-transform duration-200"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"
+              />
+            </svg>
+          </a>
+        </div>
+      </section>
+
+      <!-- Pricing Section -->
+      <section
+        class="py-16 min-h-[calc(100vh-100px)] flex flex-col justify-start"
+        id="pricing"
+      >
+        <div class="text-center mb-12 card-animate">
+          <h2
+            class="text-4xl md:text-5xl font-black mb-4 tracking-tight gradient-text"
+          >
+            💎 Paket Premium Kami
+          </h2>
+          <p class="text-sm text-gray-400 max-w-2xl mx-auto leading-relaxed">
+            Pilih paket yang paling sesuai dengan kebutuhan analisis dan keamanan website Anda.
+          </p>
+        </div>
+
+        <div class="max-w-4xl mx-auto mb-12 w-full px-2 card-animate" style="animation-delay: 0.1s">
+          <div
+            class="border border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-2xl p-5 flex items-center justify-center gap-3 text-cyan-300 text-sm shadow-lg shadow-cyan-500/10 hover:border-cyan-400/50 transition"
+          >
+            <span class="text-2xl">👑</span>
+            <p class="text-center font-medium">
+              Fitur Cek Website memerlukan akses Premium. Dapatkan analisis mendalam sekarang!
+            </p>
+          </div>
+        </div>
+
+        <div
+          class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch mb-12"
+        >
+          <!-- Basic Plan -->
+          <div
+            class="pricing-card glass-card rounded-2xl p-8 flex flex-col justify-between hover:scale-[1.02] transition-all duration-300"
+          >
+            <div>
+              <div class="mb-8">
+                <span class="text-4xl">🌱</span>
+                <h3 class="text-2xl font-bold text-white mt-4">Premium Basic</h3>
+                <p class="text-xs text-gray-400 mt-2">
+                  Cocok untuk personal blog awal.
+                </p>
+              </div>
+              <div class="mb-8">
+                <div class="flex items-baseline">
+                  <span class="text-3xl font-extrabold text-cyan-300"
+                    >Rp 25K</span
+                  >
+                  <span class="text-xs text-gray-500 ml-2">/bulan</span>
+                </div>
+              </div>
+              <ul class="space-y-4 text-sm mb-8">
+                <li class="flex items-center gap-3 text-gray-300">
+                  <span class="text-emerald-400 font-bold">✓</span> <span>Cek SEO Dasar</span>
+                </li>
+                <li class="flex items-center gap-3 text-gray-300">
+                  <span class="text-emerald-400 font-bold">✓</span> <span>Analisis Kecepatan</span>
+                </li>
+                <li class="flex items-center gap-3 text-gray-400">
+                  <span class="text-gray-600 font-bold">✗</span> <span>Celah Keamanan</span>
+                </li>
+              </ul>
+            </div>
+            <a
+              href="{{ url_for('payment') }}"
+              class="w-full text-center bg-slate-800 border border-gray-700 text-white hover:bg-slate-700 hover:border-cyan-400/50 py-3.5 rounded-xl text-sm font-bold transition duration-300 transform hover:scale-105"
+            >
+              Pilih Paket
+            </a>
+          </div>
+
+          <!-- Pro Plan (Popular) -->
+          <div
+            class="pricing-card glass-card pro-highlight rounded-2xl p-8 flex flex-col justify-between hover:scale-[1.05] transition-all duration-300 relative"
+            style="animation-delay: 0.1s"
+          >
+            <div
+              class="absolute -top-4 right-8 bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 text-xs font-black px-4 py-1.5 rounded-full shadow-lg shadow-cyan-500/40"
+            >
+              ⭐ POPULER
+            </div>
+            <div>
+              <div class="mb-8">
+                <span class="text-4xl">👑</span>
+                <h3 class="text-2xl font-bold text-white mt-4">Premium Pro</h3>
+                <p class="text-xs text-gray-300 mt-2">
+                  Terbaik untuk profesional & startup.
+                </p>
+              </div>
+              <div class="mb-8">
+                <div class="flex items-baseline">
+                  <span class="text-3xl font-extrabold text-cyan-300"
+                    >Rp 50K</span
+                  >
+                  <span class="text-xs text-gray-500 ml-2">/bulan</span>
+                </div>
+              </div>
+              <ul class="space-y-4 text-sm mb-8">
+                <li class="flex items-center gap-3 text-gray-300">
+                  <span class="text-emerald-400 font-bold">✓</span> <span>Cek SEO Lanjutan</span>
+                </li>
+                <li class="flex items-center gap-3 text-gray-300">
+                  <span class="text-emerald-400 font-bold">✓</span> <span>Analisis Kecepatan Pro</span>
+                </li>
+                <li class="flex items-center gap-3 text-gray-300">
+                  <span class="text-emerald-400 font-bold">✓</span> <span>Cek Keamanan Lengkap</span>
+                </li>
+              </ul>
+            </div>
+            <a
+              href="{{ url_for('payment') }}"
+              class="w-full text-center bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 font-bold text-slate-900 py-3.5 rounded-xl text-sm transition duration-300 transform hover:scale-105 shadow-lg shadow-cyan-500/20"
+            >
+              🚀 Langganan Sekarang
+            </a>
+          </div>
+
+          <!-- Custom Plan -->
+          <div
+            class="pricing-card glass-card rounded-2xl p-8 flex flex-col justify-between hover:scale-[1.02] transition-all duration-300"
+            style="animation-delay: 0.2s"
+          >
+            <div>
+              <div class="mb-8">
+                <span class="text-4xl">⚡</span>
+                <h3 class="text-2xl font-bold text-white mt-4">Premium Custom</h3>
+                <p class="text-xs text-gray-400 mt-2">
+                  Untuk agensi dan korporat besar.
+                </p>
+              </div>
+              <div class="mb-8">
+                <div class="flex items-baseline">
+                  <span class="text-3xl font-extrabold text-cyan-300"
+                    >Rp 150K</span
+                  >
+                  <span class="text-xs text-gray-500 ml-2">/bulan</span>
+                </div>
+              </div>
+              <ul class="space-y-4 text-sm mb-8">
+                <li class="flex items-center gap-3 text-gray-300">
+                  <span class="text-emerald-400 font-bold">✓</span> <span>Semua Fitur Pro</span>
+                </li>
+                <li class="flex items-center gap-3 text-gray-300">
+                  <span class="text-emerald-400 font-bold">✓</span> <span>Multi-user & API</span>
+                </li>
+                <li class="flex items-center gap-3 text-gray-300">
+                  <span class="text-emerald-400 font-bold">✓</span> <span>Support 24/7 Priority</span>
+                </li>
+              </ul>
+            </div>
+            <a
+              href="{{ url_for('payment') }}"
+              class="w-full text-center bg-slate-800 border border-gray-700 text-white hover:bg-slate-700 hover:border-cyan-400/50 py-3.5 rounded-xl text-sm font-bold transition duration-300 transform hover:scale-105"
+            >
+              Hubungi Sales
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- About Section -->
+      <section
+        class="py-16 min-h-[calc(100vh-100px)] flex flex-col justify-start"
+        id="about"
+      >
+        <div class="text-center mb-12 card-animate">
+          <h2
+            class="text-4xl md:text-5xl font-black mb-4 tracking-tight gradient-text"
+          >
+            🎯 Tentang Jagantara.ai
+          </h2>
+          <p class="text-sm text-gray-400 max-w-2xl mx-auto">
+            Platform keamanan web terdepan yang melindungi kedaulatan digital dengan teknologi AI.
+          </p>
+        </div>
+
+        <div
+          class="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto items-stretch"
+        >
+          <!-- Vision Card -->
+          <div
+            class="glass-card p-8 rounded-2xl flex flex-col justify-between card-animate hover:border-cyan-400/50"
+          >
+            <div>
+              <div class="flex items-center gap-4 mb-6">
+                <span class="text-3xl">🔐</span>
+                <h3 class="text-xl md:text-2xl font-bold text-cyan-300">
+                  Visi & Misi Kami
+                </h3>
+              </div>
+              <p class="text-sm text-gray-400 leading-relaxed mb-8">
+                Menjadi pilar utama sistem pertahanan siber global yang mengintegrasikan 
+                kecerdasan buatan mutakhir untuk menjamin keamanan kedaulatan data korporasi 
+                dan personal.
+              </p>
+
+              <div class="space-y-5">
+                <div class="flex gap-4 items-start">
+                  <span class="text-cyan-400 font-bold text-lg mt-1">✓</span>
+                  <div>
+                    <h4 class="text-sm font-bold text-white">
+                      Automated Defense System
+                    </h4>
+                    <p class="text-xs text-gray-500 mt-1">
+                      Deteksi ancaman siber kurang dari 1 detik menggunakan Neural Network.
+                    </p>
+                  </div>
+                </div>
+                <div class="flex gap-4 items-start">
+                  <span class="text-cyan-400 font-bold text-lg mt-1">✓</span>
+                  <div>
+                    <h4 class="text-sm font-bold text-white">
+                      Data Sovereignty Protection
+                    </h4>
+                    <p class="text-xs text-gray-500 mt-1">
+                      Enkripsi penuh tanpa celah kebocoran dari pihak ketiga.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="border-t border-cyan-500/20 pt-6 mt-8 text-xs text-gray-500 italic"
+            >
+              "Security is not a product, it's a continuous dynamic process." - Our Founders
+            </div>
+          </div>
+
+          <!-- Stats Grid -->
+          <div class="grid grid-cols-2 gap-4">
+            <div
+              class="bg-slate-900/40 border border-cyan-500/20 rounded-2xl p-6 flex flex-col justify-center items-center text-center card-animate hover:border-cyan-400/50 transition"
+            >
+              <span class="text-4xl mb-3">📊</span>
+              <p class="text-3xl md:text-4xl font-extrabold gradient-text">
+                99.9%
+              </p>
+              <p class="text-xs text-gray-500 mt-2 uppercase tracking-wider font-bold">
+                Akurasi AI
+              </p>
+            </div>
+            <div
+              class="glass-card rounded-2xl p-6 flex flex-col justify-center items-center text-center card-animate hover:border-cyan-400/50 transition"
+              style="animation-delay: 0.1s"
+            >
+              <span class="text-4xl mb-3">🌍</span>
+              <p class="text-3xl md:text-4xl font-extrabold gradient-text">24/7</p>
+              <p class="text-xs text-gray-500 mt-2 uppercase tracking-wider font-bold">
+                Global Monitoring
+              </p>
+            </div>
+            <div
+              class="glass-card rounded-2xl p-6 flex flex-col justify-center items-center text-center card-animate hover:border-cyan-400/50 transition"
+              style="animation-delay: 0.2s"
+            >
+              <span class="text-4xl mb-3">⚡</span>
+              <p class="text-3xl md:text-4xl font-extrabold gradient-text">500+</p>
+              <p class="text-xs text-gray-500 mt-2 uppercase tracking-wider font-bold">
+                Corporate Partners
+              </p>
+            </div>
+            <div
+              class="bg-slate-900/40 border border-cyan-500/20 rounded-2xl p-6 flex flex-col justify-center items-center text-center card-animate hover:border-cyan-400/50 transition"
+              style="animation-delay: 0.3s"
+            >
+              <span class="text-4xl mb-3">✅</span>
+              <p class="text-3xl md:text-4xl font-extrabold gradient-text">100%</p>
+              <p class="text-xs text-gray-500 mt-2 uppercase tracking-wider font-bold">
+                Fully Compliant
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer
+      class="text-center p-8 text-xs text-gray-600 border-t border-cyan-500/20 mt-16 w-full"
+    >
+      <p>© 2026 <span class="gradient-text font-bold">Jagantara.ai</span> • Powered by Advanced Security Analytics</p>
+    </footer>
+  </body>
+</html>

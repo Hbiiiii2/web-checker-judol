@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Register - Jagantara.ai</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+    <style>
+      .form-input {
+        transition: all 0.3s ease;
+      }
+      .form-input:focus {
+        border-color: #06b6d4;
+        box-shadow: 0 0 20px rgba(34, 211, 238, 0.3);
+      }
+    </style>
+  </head>
+  <body class="min-h-screen flex items-center justify-center p-4">
+    <!-- Animated background -->
+    <div class="absolute inset-0 overflow-hidden">
+      <div class="absolute -top-40 -right-40 w-80 h-80 bg-cyan-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob"></div>
+      <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-2000"></div>
+    </div>
+
+    <div class="relative z-10 w-full max-w-md">
+      <!-- Back Button -->
+      <a href="/" class="inline-flex items-center gap-2 text-gray-400 hover:text-cyan-400 transition mb-8 group">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 transform group-hover:-translate-x-1 transition-transform">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+        </svg>
+        <span class="text-sm font-medium">Kembali ke Beranda</span>
+      </a>
+
+      <!-- Register Card -->
+      <div class="glass p-8 md:p-10 rounded-2xl shadow-2xl border border-cyan-500/20 card-animate">
+        <!-- Logo/Branding -->
+        <div class="text-center mb-8">
+          <h1 class="text-3xl font-black gradient-text mb-2">✨ Jagantara.ai</h1>
+          <h2 class="text-xl font-bold text-white mb-1">Buat Akun Baru</h2>
+          <p class="text-sm text-gray-400">Mulai analisis keamanan web secara profesional</p>
+        </div>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %} 
+          {% if messages %} 
+            {% for category, message in messages %}
+              <div class="bg-red-500/20 border border-red-500/40 text-red-300 p-4 rounded-xl text-sm mb-6 text-center animate-pulse flex items-center justify-center gap-2">
+                <span>🔍</span>
+                <span>{{ message }}</span>
+              </div>
+            {% endfor %} 
+          {% endif %} 
+        {% endwith %} 
+        
+        {% if error %}
+          <div class="bg-red-500/20 border border-red-500/40 text-red-300 p-4 rounded-xl text-sm mb-6 text-center flex items-center justify-center gap-2">
+            <span>❌</span>
+            <span>{{ error }}</span>
+          </div>
+        {% endif %}
+        
+        {% if success %}
+          <div class="bg-green-500/20 border border-green-500/40 text-green-300 p-4 rounded-xl text-sm mb-6 text-center flex items-center justify-center gap-2">
+            <span>✅</span>
+            <span>{{ success }}</span>
+          </div>
+        {% endif %}
+
+        <!-- Register Form -->
+        <form action="/register" method="POST" class="space-y-5">
+          <!-- Username Field -->
+          <div>
+            <label class="block text-xs font-bold text-cyan-300 mb-2 uppercase tracking-wider">
+              Username
+            </label>
+            <input
+              type="text"
+              name="username"
+              required
+              placeholder="pilih username unik Anda"
+              class="form-input w-full bg-slate-900/60 border-2 border-gray-700/50 rounded-xl px-5 py-3 text-white focus:outline-none transition text-sm placeholder:text-gray-600"
+            />
+            <p class="text-xs text-gray-500 mt-1">Min. 3 karakter, hanya huruf dan angka</p>
+          </div>
+
+          <!-- Email Field -->
+          <div>
+            <label class="block text-xs font-bold text-cyan-300 mb-2 uppercase tracking-wider">
+              Email
+            </label>
+            <input
+              type="email"
+              name="email"
+              required
+              placeholder="email@example.com"
+              class="form-input w-full bg-slate-900/60 border-2 border-gray-700/50 rounded-xl px-5 py-3 text-white focus:outline-none transition text-sm placeholder:text-gray-600"
+            />
+            <p class="text-xs text-gray-500 mt-1">Gunakan email yang valid untuk verifikasi</p>
+          </div>
+
+          <!-- Password Field -->
+          <div>
+            <label class="block text-xs font-bold text-cyan-300 mb-2 uppercase tracking-wider">
+              Password
+            </label>
+            <input
+              type="password"
+              name="password"
+              required
+              placeholder="••••••••••••"
+              class="form-input w-full bg-slate-900/60 border-2 border-gray-700/50 rounded-xl px-5 py-3 text-white focus:outline-none transition text-sm placeholder:text-gray-600"
+            />
+            <p class="text-xs text-gray-500 mt-1">Min. 8 karakter dengan kombinasi huruf & angka</p>
+          </div>
+
+          <!-- Terms Checkbox -->
+          <div class="flex items-start gap-3 pt-2">
+            <input
+              type="checkbox"
+              id="terms"
+              name="terms"
+              required
+              class="w-4 h-4 mt-0.5 rounded border-gray-600 text-cyan-500 focus:ring-cyan-500 bg-slate-900 cursor-pointer"
+            />
+            <label for="terms" class="text-xs text-gray-400 cursor-pointer leading-relaxed">
+              Saya setuju dengan <a href="#" class="text-cyan-400 hover:underline">Kebijakan Privasi</a> dan 
+              <a href="#" class="text-cyan-400 hover:underline">Syarat Layanan</a>
+            </label>
+          </div>
+
+          <!-- Submit Button -->
+          <button
+            type="submit"
+            class="btn-primary w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:shadow-lg hover:shadow-cyan-500/50 text-slate-900 font-bold py-3 rounded-xl text-sm transition duration-300 transform hover:scale-[1.02] mt-6"
+          >
+            🚀 Buat Akun Sekarang
+          </button>
+        </form>
+
+        <!-- Divider -->
+        <div class="flex items-center gap-4 my-6">
+          <div class="flex-1 h-px bg-gray-700/50"></div>
+          <span class="text-xs text-gray-500">atau</span>
+          <div class="flex-1 h-px bg-gray-700/50"></div>
+        </div>
+
+        <!-- Login Link -->
+        <p class="text-center text-sm text-gray-400">
+          Sudah punya akun?
+          <a href="/login" class="text-cyan-400 hover:text-cyan-300 font-bold transition">
+            Masuk Di Sini
+          </a>
+        </p>
+      </div>
+
+      <!-- Security Note -->
+      <div class="mt-6 p-4 bg-slate-900/30 border border-gray-700/50 rounded-xl text-center">
+        <p class="text-xs text-gray-500 flex items-center justify-center gap-2">
+          <span>🔒</span>
+          Data Anda dilindungi dengan enkripsi tingkat enterprise
+        </p>
+      </div>
+    </div>
+
+    <script>
+      // Form input interactions
+      document.querySelectorAll('.form-input').forEach(input => {
+        input.addEventListener('focus', function() {
+          this.parentElement.classList.add('focused');
+        });
+        input.addEventListener('blur', function() {
+          this.parentElement.classList.remove('focused');
+        });
+      });
+
+      // Form submission animation
+      document.querySelector('form').addEventListener('submit', function(e) {
+        const btn = this.querySelector('button');
+        const originalText = btn.textContent;
+        btn.innerHTML = '<span class="loader inline-block mr-2"></span>Membuat Akun...';
+        btn.disabled = true;
+      });
+
+      // Password strength indicator (optional)
+      const passwordInput = document.querySelector('input[name="password"]');
+      if (passwordInput) {
+        passwordInput.addEventListener('input', function() {
+          const strength = this.value.length >= 8 ? '✓' : '';
+          console.log('Password strength:', strength);
+        });
+      }
+    </script>
+  </body>
+</html>
+          Daftar
+        </button>
+      </form>
+      <p class="text-center text-xs text-gray-400 mt-6">
+        Sudah punya akun?
+        <a href="/login" class="text-cyan-400 hover:underline">Login di sini</a>
+      </p>
+    </div>
+  </body>
+</html>

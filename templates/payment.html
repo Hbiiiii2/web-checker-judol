@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Pilih Paket Premium - SitePulse</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+    <script
+      type="text/javascript"
+      src="https://app.sandbox.midtrans.com/snap/snap.js"
+      data-client-key="{{ clientKey }}"
+    ></script>
+  </head>
+  <body
+    class="p-6 md:p-2 flex flex-col justify-center items-center min-h-screen relative"
+  >
+    <a
+      href="/"
+      class="absolute top-2 left-6 md:top-10 md:left-10 inline-flex items-center gap-2 text-xs text-gray-400 hover:text-cyan-400 bg-slate-900/60 border border-gray-800 hover:border-cyan-500/30 px-3.5 py-2 rounded-xl transition duration-200 group backdrop-blur-sm z-50"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke-width="2.5"
+        stroke="currentColor"
+        class="w-3.5 h-3.5 transform group-hover:-translate-x-1 transition-transform"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
+        />
+      </svg>
+      <span>Kembali</span>
+    </a>
+
+    <div class="max-w-5xl w-full text-center mb-8 mt-16 md:mt-6">
+      <h2 class="text-3xl font-extrabold text-white tracking-tight">
+        Tingkatkan ke Akses Premium
+      </h2>
+      <p class="text-sm text-gray-400 mt-2">
+        Pilih paket yang paling sesuai dengan kebutuhan analisis website Anda.
+      </p>
+
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %} {% for category, message in messages %}
+      <div
+        class="max-w-md mx-auto bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 p-3 rounded-xl text-xs mt-4"
+      >
+        👑 {{ message }}
+      </div>
+      {% endfor %} {% endif %} {% endwith %}
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full mb-8">
+      <div
+        id="card-basic"
+        onclick="selectPackage('basic', 25000)"
+        class="glass p-6 rounded-2xl cursor-pointer border-2 border-transparent transition-all duration-300 hover:scale-[1.02] flex flex-col justify-between relative group"
+      >
+        <div>
+          <div class="text-3xl mb-2">🌱</div>
+          <h3 class="text-xl font-bold text-white">Premium Basic</h3>
+          <p class="text-xs text-gray-400 mt-1">
+            Cocok untuk personal blog awal.
+          </p>
+          <div class="my-4">
+            <span class="text-2xl font-black text-white">Rp 25.000</span>
+            <span class="text-xs text-gray-500">/bulan</span>
+          </div>
+          <ul
+            class="text-left space-y-2 text-xs text-gray-300 border-t border-gray-800 pt-4"
+          >
+            <li class="flex items-center gap-2">✓ Cek SEO Dasar</li>
+            <li class="flex items-center gap-2">✓ Kecepatan Mutakhir</li>
+            <li class="text-gray-600">✗ Analisis Celah Keamanan</li>
+          </ul>
+        </div>
+      </div>
+
+      <div
+        id="card-pro"
+        onclick="selectPackage('pro', 50000)"
+        class="glass p-6 rounded-2xl cursor-pointer border-2 border-cyan-500 transition-all duration-300 hover:scale-[1.02] flex flex-col justify-between relative group shadow-lg shadow-cyan-500/10"
+      >
+        <span
+          class="absolute -top-3 right-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider shadow"
+          >Populer</span
+        >
+        <div>
+          <div class="text-3xl mb-2">👑</div>
+          <h3 class="text-xl font-bold text-white">Premium Pro</h3>
+          <p class="text-xs text-gray-400 mt-1">
+            Terbaik untuk profesional & startup.
+          </p>
+          <div class="my-4">
+            <span class="text-2xl font-black text-white">Rp 50.000</span>
+            <span class="text-xs text-gray-500">/bulan</span>
+          </div>
+          <ul
+            class="text-left space-y-2 text-xs text-gray-300 border-t border-gray-800 pt-4"
+          >
+            <li class="flex items-center gap-2">✓ Cek SEO Lanjutan</li>
+            <li class="flex items-center gap-2">✓ Kecepatan Mutakhir</li>
+            <li class="flex items-center gap-2">✓ Analisis Celah Keamanan</li>
+          </ul>
+        </div>
+      </div>
+
+      <div
+        id="card-custom"
+        onclick="selectPackage('custom', 150000)"
+        class="glass p-6 rounded-2xl cursor-pointer border-2 border-transparent transition-all duration-300 hover:scale-[1.02] flex flex-col justify-between relative group"
+      >
+        <div>
+          <div class="text-3xl mb-2">⚡</div>
+          <h3 class="text-xl font-bold text-white">Premium Custom</h3>
+          <p class="text-xs text-gray-400 mt-1">
+            Akses skala agensi atau korporat.
+          </p>
+          <div class="my-4">
+            <span class="text-2xl font-black text-white">Rp 150.000</span>
+            <span class="text-xs text-gray-500">/bulan</span>
+          </div>
+          <ul
+            class="text-left space-y-2 text-xs text-gray-300 border-t border-gray-800 pt-4"
+          >
+            <li class="flex items-center gap-2">✓ Semua Fitur Pro</li>
+            <li class="flex items-center gap-2">✓ Multi-user & API Access</li>
+            <li class="flex items-center gap-2">✓ CS Prioritas 24/7</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="w-full max-w-md glass p-6 rounded-2xl shadow-xl text-center">
+      <div
+        class="flex justify-between items-center text-sm mb-4 bg-slate-900/40 p-3 rounded-xl border border-gray-800"
+      >
+        <span class="text-gray-400"
+          >Paket Terpilih:
+          <b id="text-package-name" class="text-cyan-400 uppercase"
+            >Pro</b
+          ></span
+        >
+        <span
+          id="text-package-price"
+          class="text-white font-extrabold text-base"
+          >Rp 50.000</span
+        >
+      </div>
+
+      <div class="text-left mb-5">
+        <label
+          class="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2"
+        >
+          Metode Pembayaran Tersedia
+        </label>
+        <div
+          class="grid grid-cols-4 gap-2 bg-slate-900/20 p-3 rounded-xl border border-gray-800/60"
+        >
+          <div
+            class="bg-slate-900/60 border border-gray-700/50 rounded-lg p-2 flex flex-col items-center justify-center grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition duration-200"
+          >
+            <span class="text-xs font-bold text-white tracking-tighter"
+              >QRIS</span
+            >
+            <span class="text-[8px] text-gray-400 mt-0.5">Gopay/OVO</span>
+          </div>
+          <div
+            class="bg-slate-900/60 border border-gray-700/50 rounded-lg p-2 flex flex-col items-center justify-center grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition duration-200"
+          >
+            <span class="text-xs font-bold text-white">VA</span>
+            <span class="text-[8px] text-gray-400 mt-0.5">BCA/Mandiri</span>
+          </div>
+          <div
+            class="bg-slate-900/60 border border-gray-700/50 rounded-lg p-2 flex flex-col items-center justify-center grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition duration-200"
+          >
+            <span class="text-xs font-bold text-white">CARD</span>
+            <span class="text-[8px] text-gray-400 mt-0.5">Visa/Master</span>
+          </div>
+          <div
+            class="bg-slate-900/60 border border-gray-700/50 rounded-lg p-2 flex flex-col items-center justify-center grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition duration-200"
+          >
+            <span class="text-xs font-bold text-white">STORE</span>
+            <span class="text-[8px] text-gray-400 mt-0.5">Alfa/Indo</span>
+          </div>
+        </div>
+        <p class="text-[10px] text-gray-500 mt-1.5 text-center">
+          *Metode pembayaran spesifik dipilih pada jendela pop-up Midtrans.
+        </p>
+      </div>
+
+      <button
+        id="pay-button"
+        class="w-full bg-gradient-to-r from-cyan-400 to-blue-500 hover:opacity-90 text-slate-950 font-extrabold py-3 rounded-xl transition duration-300 transform hover:scale-[1.01]"
+      >
+        Bayar Sekarang
+      </button>
+    </div>
+
+    <script type="text/javascript">
+      // Set paket pilihan default awal (Pro)
+      let selectedPackage = "pro";
+      let selectedPrice = 50000;
+
+      function selectPackage(packageKey, price) {
+        selectedPackage = packageKey;
+        selectedPrice = price;
+
+        // Atur ulang border visual semua card
+        ["basic", "pro", "custom"].forEach((pkg) => {
+          const card = document.getElementById(`card-${pkg}`);
+          if (pkg === packageKey) {
+            card.classList.add(
+              "border-cyan-500",
+              "shadow-lg",
+              "shadow-cyan-500/10",
+            );
+            card.classList.remove("border-transparent");
+          } else {
+            card.classList.remove(
+              "border-cyan-500",
+              "shadow-lg",
+              "shadow-cyan-500/10",
+            );
+            card.classList.add("border-transparent");
+          }
+        });
+
+        // Update teks detail total di bawah
+        document.getElementById("text-package-name").innerText = packageKey;
+        document.getElementById("text-package-price").innerText =
+          "Rp " + price.toLocaleString("id-ID");
+      }
+
+      // Event handler klik pembayaran Midtrans Snap
+      const payButton = document.getElementById("pay-button");
+      payButton.addEventListener("click", async function () {
+        payButton.disabled = true;
+        payButton.innerText = "Memproses...";
+
+        try {
+          // Kirim data paket terpilih ke Backend Python
+          const response = await fetch("/payment/token", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ package: selectedPackage }),
+          });
+          const data = await response.json();
+
+          if (data.token) {
+            window.snap.pay(data.token, {
+              onSuccess: async function (result) {
+                await fetch("/payment/success", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    transaction_id: result.transaction_id,
+                    order_id: result.order_id,
+                    payment_type: result.payment_type,
+                    gross_amount: result.gross_amount,
+                    transaction_status: result.transaction_status,
+                  }),
+                });
+                window.location.href = "/payment-success";
+              },
+              onPending: function (result) {
+                alert("Menunggu pembayaran!");
+              },
+              onError: function (result) {
+                alert("Pembayaran gagal!");
+              },
+              onClose: function () {
+                payButton.disabled = false;
+                payButton.innerText = "Bayar Sekarang";
+              },
+            });
+          } else {
+            alert("Gagal mendapatkan token pembayaran.");
+            payButton.disabled = false;
+            payButton.innerText = "Bayar Sekarang";
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Terjadi kesalahan jaringan.");
+          payButton.disabled = false;
+          payButton.innerText = "Bayar Sekarang";
+        }
+      });
+    </script>
+  </body>
+</html>

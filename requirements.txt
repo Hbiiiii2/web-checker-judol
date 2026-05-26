@@ -1,0 +1,14 @@
+Flask
+Flask-Session
+PyMySQL
+cryptography
+midtransclient
+python-dotenv
+pandas
+numpy
+scikit-learn
+scipy
+joblib
+beautifulsoup4
+requests
+ddgs

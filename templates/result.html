@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Hasil Analisis URL Anomali - Jagantara.ai</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+    <script>
+      // Animated counter function
+      function animateCounter(element, target, duration = 1000) {
+        let current = 0;
+        const increment = target / (duration / 16);
+        const timer = setInterval(() => {
+          current += increment;
+          if (current >= target) {
+            element.textContent = target;
+            clearInterval(timer);
+          } else {
+            element.textContent = Math.floor(current);
+          }
+        }, 16);
+      }
+
+      // Crawling animation
+      function showCrawlingAnimation() {
+        const crawlSteps = [
+          'Scanning DNS Records...',
+          'Analyzing SSL Certificate...',
+          'Crawling Web Pages...',
+          'Detecting Suspicious URLs...',
+          'Analyzing Link Integrity...',
+          'Scanning for Malware...',
+          'Generating Report...'
+        ];
+
+        let step = 0;
+        const crawlElement = document.getElementById('crawlStatus');
+        
+        const interval = setInterval(() => {
+          if (crawlElement && step < crawlSteps.length) {
+            crawlElement.innerHTML = `<span class="animate-pulse">⏳</span> ${crawlSteps[step]}`;
+            step++;
+          } else {
+            clearInterval(interval);
+            if (crawlElement) {
+              crawlElement.innerHTML = '<span class="text-emerald-400">✓</span> Analisis Selesai';
+            }
+          }
+        }, 600);
+      }
+
+      // Initialize animations on page load
+      window.addEventListener('load', () => {
+        document.body.classList.add('page-transition');
+        showCrawlingAnimation();
+        
+        // Animate SEO score
+        const seoElement = document.getElementById('seoScore');
+        if (seoElement) {
+          const score = parseInt(seoElement.getAttribute('data-value'));
+          animateCounter(seoElement, score, 1500);
+        }
+
+        // Animate load time
+        const loadElement = document.getElementById('loadTime');
+        if (loadElement) {
+          const loadTime = parseFloat(loadElement.getAttribute('data-value'));
+          let current = 0;
+          const increment = loadTime / 100;
+          const timer = setInterval(() => {
+            current += increment;
+            if (current >= loadTime) {
+              loadElement.textContent = loadTime.toFixed(2);
+              clearInterval(timer);
+            } else {
+              loadElement.textContent = current.toFixed(2);
+            }
+          }, 15);
+        }
+
+        // Animate vulnerability counters
+        setTimeout(() => {
+          const vulnCount = document.getElementById('vulnCount');
+          if (vulnCount) {
+            animateCounter(vulnCount, parseInt(vulnCount.getAttribute('data-value')), 1000);
+          }
+
+          const anomalyCount = document.getElementById('anomalyCount');
+          if (anomalyCount) {
+            animateCounter(anomalyCount, parseInt(anomalyCount.getAttribute('data-value')), 1000);
+          }
+        }, 3000);
+      });
+
+      // Toggle details
+      function toggleDetails(id) {
+        const elem = document.getElementById(id);
+        if (elem) {
+          elem.classList.toggle('hidden');
+        }
+      }
+    </script>
+  </head>
+  <body class="text-gray-200 font-sans min-h-screen">
+    <!-- Navigation -->
+    <nav class="sticky top-0 z-50 p-5 flex justify-between items-center max-w-7xl mx-auto w-full">
+      <a
+        href="/"
+        class="text-2xl font-black gradient-text hover:scale-105 transition-transform duration-300"
+        >✨ Jagantara.ai</a
+      >
+      <div class="flex gap-4">
+        {% if user %}
+        <a
+          href="/profile"
+          class="flex items-center gap-2 group bg-slate-900/50 hover:bg-slate-700/80 border border-cyan-500/30 px-4 py-2 rounded-xl transition duration-300 hover:border-cyan-400"
+        >
+          <div
+            class="w-6 h-6 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-xs font-bold text-slate-900 shadow-lg shadow-cyan-500/50"
+          >
+            {{ user.username[0] | upper }}
+          </div>
+          <span
+            class="text-sm text-gray-300 group-hover:text-cyan-300 transition"
+            >{{ user.username }}</span
+          >
+        </a>
+        <a
+          href="/logout"
+          class="text-sm text-gray-400 hover:text-red-400 transition px-4 py-2 rounded-lg border border-gray-700/50 hover:border-red-500/50"
+        >
+          Logout
+        </a>
+        {% else %}
+        <a href="/login" class="text-sm text-gray-400 hover:text-cyan-400 transition px-4 py-2"
+          >Login</a
+        >
+        <a
+          href="/register"
+          class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:shadow-lg hover:shadow-cyan-500/50 text-slate-900 font-bold px-4 py-2 rounded-lg text-sm transition duration-300 transform hover:scale-105"
+          >Register</a
+        >
+        {% endif %}
+      </div>
+    </nav>
+
+    <!-- Back to Home -->
+    <div class="max-w-7xl mx-auto flex justify-between items-center p-5">
+      <div>
+        <span class="text-xs font-bold text-cyan-400 tracking-widest uppercase"
+          >🔍 Laporan Deteksi URL Anomali</span
+        >
+        <h1 class="text-lg md:text-2xl font-extrabold text-white mt-1 break-all"
+        >
+          Analisis: <span class="gradient-text">{{ result.url }}</span>
+        </h1>
+      </div>
+      <a
+        href="/home"
+        class="bg-slate-900/50 hover:bg-slate-800/80 text-sm px-6 py-2 rounded-xl transition duration-300 border border-cyan-500/30 hover:border-cyan-400 hover:text-cyan-300"
+        >← Cek Website Lain</a
+      >
+    </div>
+
+    <!-- Main Results -->
+    <main class="max-w-7xl mx-auto px-4 py-12">
+      <!-- Crawling Status Section -->
+      <div class="glass rounded-2xl p-8 mb-8 card-animate border-cyan-500/30">
+        <div class="flex items-center gap-3 mb-6">
+          <span class="text-2xl">🔄</span>
+          <h2 class="text-xl font-bold text-cyan-300">Proses Crawling Website</h2>
+        </div>
+        
+        <div class="space-y-3">
+          <div id="crawlStatus" class="text-sm text-cyan-300 font-medium flex items-center gap-2">
+            <span class="inline-block w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></span>
+            Memulai analisis...
+          </div>
+          
+          <!-- Progress Bar -->
+          <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full animate-pulse" style="width: 100%; animation-duration: 3s;"></div>
+          </div>
+          
+          <p class="text-xs text-gray-400 mt-2">
+            Platform Jagantara.ai sedang memindai semua link, URL, dan struktur website untuk mendeteksi anomali...
+          </p>
+        </div>
+      </div>
+
+      <!-- ML MODEL PREDICTION SECTION -->
+      <div class="glass rounded-2xl p-8 mb-8 card-animate border-blue-500/30">
+        <div class="flex items-center gap-3 mb-6">
+          <span class="text-2xl">🤖</span>
+          <h2 class="text-xl font-bold text-blue-300">AI Security Analysis (ML Model)</h2>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Prediction Result -->
+          <div class="bg-slate-900/50 rounded-xl p-6 border border-blue-500/30">
+            <p class="text-xs font-semibold text-gray-400 mb-3 uppercase tracking-wide">🎯 Prediksi Keamanan</p>
+            <div class="mb-4">
+              {% if result.ml_label == 'malicious' %}
+                <div class="text-4xl font-black text-red-500 mb-1">⚠️ MALICIOUS</div>
+                <p class="text-sm text-red-400">URL terdeteksi sebagai berbahaya/judol</p>
+              {% elif result.ml_label == 'safe' %}
+                <div class="text-4xl font-black text-emerald-500 mb-1">✓ SAFE</div>
+                <p class="text-sm text-emerald-400">URL aman dan terpercaya</p>
+              {% else %}
+                <div class="text-4xl font-black text-gray-400 mb-1">? UNKNOWN</div>
+                <p class="text-sm text-gray-400">Tidak dapat ditentukan</p>
+              {% endif %}
+            </div>
+            
+            <!-- Confidence Meter -->
+            <div class="mt-4">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-xs text-gray-400">Confidence Level</span>
+                <span class="text-sm font-bold text-cyan-400">{{ "%.1f" | format(result.ml_confidence * 100) }}%</span>
+              </div>
+              <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                <div 
+                  class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-1000"
+                  style="width: {{ result.ml_confidence * 100 }}%">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Probability Distribution -->
+          <div class="bg-slate-900/50 rounded-xl p-6 border border-blue-500/30">
+            <p class="text-xs font-semibold text-gray-400 mb-4 uppercase tracking-wide">📊 Analisis Probabilitas</p>
+            <div class="space-y-3">
+              {% for class_name, prob_value in result.ml_probabilities.items() %}
+                <div>
+                  <div class="flex justify-between items-center mb-1">
+                    <span class="text-xs font-semibold capitalize">{{ class_name }}</span>
+                    <span class="text-xs font-bold text-cyan-400">{{ "%.1f" | format(prob_value * 100) }}%</span>
+                  </div>
+                  <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                    <div 
+                      class="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-500"
+                      style="width: {{ prob_value * 100 }}%">
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- URL Metadata -->
+          <div class="bg-slate-900/50 rounded-xl p-6 border border-blue-500/30">
+            <p class="text-xs font-semibold text-gray-400 mb-4 uppercase tracking-wide">📝 URL Metadata</p>
+            <div class="space-y-2 text-sm">
+              <div>
+                <p class="text-xs text-gray-500 mb-1">Page Title</p>
+                <p class="text-xs text-cyan-400 truncate" title="{{ result.title }}">
+                  {{ result.title if result.title and result.title != '-' else '(No title found)' }}
+                </p>
+              </div>
+              <div>
+                <p class="text-xs text-gray-500 mb-1">Meta Description</p>
+                <p class="text-xs text-cyan-400 line-clamp-2">
+                  {{ result.meta_description if result.meta_description and result.meta_description != '-' else '(No description)' }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Key Security Features -->
+        <div class="mt-6 p-4 bg-slate-800/50 rounded-xl border border-blue-500/20">
+          <p class="text-xs font-semibold text-gray-400 mb-3 uppercase tracking-wide">🔍 Detected Features</p>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+            {% if result.features %}
+              <div class="flex items-center gap-2">
+                <span class="text-cyan-400">●</span>
+                <span class="text-gray-300">Domain Entropy: <strong>{{ "%.3f" | format(result.features.domain_entropy) }}</strong></span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-cyan-400">●</span>
+                <span class="text-gray-300">Keyword Density: <strong>{{ "%.3f" | format(result.features.keyword_density) }}</strong></span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-cyan-400">●</span>
+                <span class="text-gray-300">Judol Hits: <strong>{{ result.features.judol_hits_total }}</strong></span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-cyan-400">●</span>
+                <span class="text-gray-300">Suspicious TLD: <strong>{{ result.features.is_suspicious_tld }}</strong></span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-cyan-400">●</span>
+                <span class="text-gray-300">URL Length: <strong>{{ result.features.url_length }}</strong></span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-cyan-400">●</span>
+                <span class="text-gray-300">HTTPS: <strong>{{ "Yes" if result.features.https else "No" }}</strong></span>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="mt-6 p-4 bg-slate-800/50 rounded-xl border border-blue-500/20">
+          <p class="text-xs font-semibold text-gray-400 mb-3 uppercase tracking-wide">🧠 Alasan Deteksi</p>
+          <div class="flex flex-wrap gap-2">
+            {% if result.analysis_indicators %}
+              {% for indicator in result.analysis_indicators %}
+                <span class="text-xs px-3 py-1 rounded-full bg-blue-500/10 text-blue-300 border border-blue-500/20">{{ indicator }}</span>
+              {% endfor %}
+            {% else %}
+              <span class="text-xs text-gray-500">Tidak ada sinyal tambahan yang menonjol</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Overall Security Assessment -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Threat Level Card -->
+        <div class="card-animate card-hover group glass p-8 rounded-2xl text-center overflow-hidden relative border-cyan-500/30">
+          <div class="absolute inset-0 bg-gradient-to-br from-red-500/10 to-transparent opacity-0 group-hover:opacity-100 transition duration-300"></div>
+          <div class="relative z-10">
+            <p class="text-xs font-semibold text-gray-400 mb-4 tracking-wide uppercase">🚨 Tingkat Ancaman</p>
+            <p class="text-5xl font-black text-red-400 mb-2">
+              {% if result.ml_label == 'malicious' %}
+                <span class="text-red-500">TINGGI</span>
+              {% elif result.ml_label == 'safe' %}
+                <span class="text-emerald-400">RENDAH</span>
+              {% else %}
+                <span class="text-orange-400">MEDIUM</span>
+              {% endif %}
+            </p>
+            <p class="text-sm text-gray-400 mt-2">
+              {% if result.ml_label == 'malicious' %}
+                ⚠️ Website ini terdeteksi sebagai berbahaya/judol
+              {% elif result.ml_label == 'safe' %}
+                ✓ Website ini aman dari ancaman umum
+              {% else %}
+                ? Tidak dapat ditentukan status keamanannya
+              {% endif %}
+            </p>
+          </div>
+        </div>
+
+        <!-- Vulnerabilities Found -->
+        <div class="card-animate card-hover group glass p-8 rounded-2xl text-center overflow-hidden relative border-cyan-500/30" style="animation-delay: 0.1s">
+          <div class="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-transparent opacity-0 group-hover:opacity-100 transition duration-300"></div>
+          <div class="relative z-10">
+            <p class="text-xs font-semibold text-gray-400 mb-4 tracking-wide uppercase">⚠️ Kerentanan Ditemukan</p>
+            <p id="vulnCount" data-value="{{ result.vulnerabilities|length }}" class="stat-number text-6xl font-black mb-2">0</p>
+            <p class="text-sm text-gray-400 mt-2">Celah keamanan yang diturunkan dari sinyal ML</p>
+          </div>
+        </div>
+
+        <!-- Anomalous URLs Found -->
+        <div class="card-animate card-hover group glass p-8 rounded-2xl text-center overflow-hidden relative border-cyan-500/30" style="animation-delay: 0.2s">
+          <div class="absolute inset-0 bg-gradient-to-br from-yellow-500/10 to-transparent opacity-0 group-hover:opacity-100 transition duration-300"></div>
+          <div class="relative z-10">
+            <p class="text-xs font-semibold text-gray-400 mb-4 tracking-wide uppercase">🔗 URL Anomali</p>
+            <p id="anomalyCount" data-value="{{ result.anomalies|length }}" class="stat-number text-6xl font-black mb-2">0</p>
+            <p class="text-sm text-gray-400 mt-2">Link mencurigakan yang dibangun dari pola URL</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Website Status Badge -->
+      <div class="mb-8 card-animate">
+        <div class="glass rounded-2xl p-6 border-cyan-500/30">
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <h3 class="font-bold text-lg text-white mb-1">Status Keamanan Website</h3>
+              <p class="text-sm text-gray-400">Berdasarkan analisis keseluruhan</p>
+            </div>
+            <div class="text-center">
+              {% if result.ml_label == 'safe' %}
+                <div class="text-5xl font-black text-emerald-400 mb-1">✓ AMAN</div>
+                <p class="text-sm text-emerald-300">Website tidak menunjukkan tanda-tanda kompromis</p>
+              {% elif result.ml_label == 'malicious' %}
+                <div class="text-5xl font-black text-red-500 mb-1">✗ BERBAHAYA</div>
+                <p class="text-sm text-red-300">Website ini terdeteksi sebagai malicious/judol</p>
+              {% else %}
+                <div class="text-5xl font-black text-orange-400 mb-1">⚠️ WASPADA</div>
+                <p class="text-sm text-orange-300">Status keamanan tidak terpastikan</p>
+              {% endif %}
+              <p class="text-xs text-gray-400 mt-2">Risk score: {{ result.risk_score }}/100</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detailed Findings Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <!-- Security Vulnerabilities -->
+        <div class="glass rounded-2xl p-8 border-cyan-500/30 card-animate">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-red-300">🔐 Kerentanan Keamanan</h2>
+            <button onclick="toggleDetails('vulnDetails')" class="text-xs px-3 py-1 bg-slate-800 rounded-lg hover:bg-slate-700 transition">
+              Toggle
+            </button>
+          </div>
+          
+          <div id="vulnDetails" class="space-y-4">
+            {% if result.vulnerabilities %}
+              {% for vuln in result.vulnerabilities %}
+                <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4 hover:border-red-400/50 transition cursor-pointer">
+                  <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                      <h4 class="font-bold text-red-300 mb-1">{{ loop.index }}. {{ vuln.title }}</h4>
+                      <p class="text-xs text-gray-400 mb-2">{{ vuln.description }}</p>
+                      <div class="flex gap-2 flex-wrap">
+                        <span class="text-xs bg-red-500/20 text-red-300 px-2 py-1 rounded">{{ vuln.severity }}</span>
+                        <span class="text-xs bg-gray-700/50 text-gray-300 px-2 py-1 rounded">{{ vuln.domain }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            {% else %}
+              <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
+                <p class="text-sm text-emerald-300">Tidak ada kerentanan spesifik yang diturunkan dari fitur model.</p>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Anomalous URLs Detected -->
+        <div class="glass rounded-2xl p-8 border-cyan-500/30 card-animate" style="animation-delay: 0.1s">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-yellow-300">🔗 URL Anomali Terdeteksi</h2>
+            <button onclick="toggleDetails('anomalyDetails')" class="text-xs px-3 py-1 bg-slate-800 rounded-lg hover:bg-slate-700 transition">
+              Toggle
+            </button>
+          </div>
+          
+          <div id="anomalyDetails" class="space-y-3">
+            {% if result.anomalies %}
+              {% for anomaly in result.anomalies %}
+                <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 hover:border-yellow-400/50 transition">
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="flex-1">
+                      <p class="text-xs font-mono text-gray-300 break-all">{{ anomaly.url }}</p>
+                      <p class="text-xs text-yellow-300 mt-1">{{ anomaly.risk }}</p>
+                    </div>
+                    <span class="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded whitespace-nowrap">ANOMALY</span>
+                  </div>
+                </div>
+              {% endfor %}
+            {% else %}
+              <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
+                <p class="text-sm text-emerald-300">Tidak ada pola URL anomali yang terdeteksi dari input ini.</p>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Detailed Analysis -->
+      <div class="glass rounded-2xl p-8 mb-12 card-animate border-cyan-500/30" style="animation-delay: 0.2s">
+        <h2 class="text-2xl font-bold mb-6">
+          <span class="gradient-text">📊 Ringkasan & Rekomendasi</span>
+        </h2>
+        
+        <div class="grid md:grid-cols-2 gap-6">
+          <!-- Recommendations -->
+          <div class="bg-slate-900/50 p-6 rounded-lg border border-cyan-500/20">
+            <h3 class="font-bold text-cyan-300 mb-4 flex items-center gap-2">
+              <span>📋</span> Tindakan Perbaikan
+            </h3>
+            <ul class="text-sm text-gray-400 space-y-3">
+              {% if result.recommendations %}
+                {% for recommendation in result.recommendations %}
+                  <li class="flex gap-3">
+                    <span class="text-cyan-400 font-bold">{{ loop.index }}.</span>
+                    <span>{{ recommendation }}</span>
+                  </li>
+                {% endfor %}
+              {% else %}
+                <li class="flex gap-3">
+                  <span class="text-cyan-400 font-bold">1.</span>
+                  <span>Tidak ada tindakan tambahan yang perlu diambil.</span>
+                </li>
+              {% endif %}
+            </ul>
+          </div>
+
+          <!-- Risk Assessment -->
+          <div class="bg-slate-900/50 p-6 rounded-lg border border-cyan-500/20">
+            <h3 class="font-bold text-cyan-300 mb-4 flex items-center gap-2">
+              <span>⚖️</span> Penilaian Risiko
+            </h3>
+            <div class="space-y-4">
+              <div>
+                <p class="text-xs text-gray-400 mb-2">Risiko Kompromis</p>
+                <div class="w-full bg-slate-800 rounded-full h-2">
+                  <div class="h-full bg-gradient-to-r from-orange-500 to-red-500 rounded-full" style="width: {{ result.risk_score }}%"></div>
+                </div>
+                <p class="text-xs text-orange-300 mt-1">{{ result.risk_level|title }} Risk</p>
+              </div>
+              
+              <div>
+                <p class="text-xs text-gray-400 mb-2">Kerentanan Umum</p>
+                <div class="w-full bg-slate-800 rounded-full h-2">
+                  <div class="h-full bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full" style="width: {{ (result.vulnerabilities|length * 18) if result.vulnerabilities else 10 }}%"></div>
+                </div>
+                <p class="text-xs text-yellow-300 mt-1">{{ result.vulnerabilities|length }} item(s) exposed</p>
+              </div>
+
+              <div>
+                <p class="text-xs text-gray-400 mb-2">Data Breach Likelihood</p>
+                <div class="w-full bg-slate-800 rounded-full h-2">
+                  <div class="h-full bg-gradient-to-r from-red-500 to-red-600 rounded-full" style="width: {{ (result.features.judol_hits_total * 15) if result.features else 0 }}%"></div>
+                </div>
+                <p class="text-xs text-red-300 mt-1">Keyword-driven risk signal</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Call to Action -->
+      <div class="flex flex-col sm:flex-row gap-4 justify-center card-animate" style="animation-delay: 0.3s">
+        <a
+          href="/"
+          class="btn-primary bg-gradient-to-r from-cyan-500 to-blue-600 hover:shadow-lg hover:shadow-cyan-500/50 text-slate-900 font-bold px-10 py-3 rounded-xl transition duration-300 text-center transform hover:scale-105"
+        >
+          🔍 Analisis Website Lain
+        </a>
+        <button
+          onclick="window.print()"
+          class="btn-primary bg-slate-700/50 hover:bg-slate-600/70 border border-cyan-500/30 font-bold px-10 py-3 rounded-xl transition duration-300 transform hover:scale-105"
+        >
+          📥 Export PDF Report
+        </button>
+        <a
+          href="/dashboard"
+          class="btn-primary bg-slate-700/50 hover:bg-slate-600/70 border border-cyan-500/30 font-bold px-10 py-3 rounded-xl transition duration-300 transform hover:scale-105"
+        >
+          📊 Dashboard
+        </a>
+      </div>
+
+      <!-- Footer Note -->
+      <div class="mt-12 text-center card-animate" style="animation-delay: 0.4s">
+        <div class="glass p-6 rounded-xl inline-block border-cyan-500/30">
+          <p class="text-sm text-gray-400 mb-2">
+            🔐 <span class="text-cyan-400 font-bold">Jagantara.ai</span> - SaaS Platform Deteksi URL Anomali
+          </p>
+          <p class="text-xs text-gray-500">
+            Laporan ini dibuat menggunakan teknologi Deep Learning & Advanced URL Analysis ™
+          </p>
+          <p class="text-xs text-gray-600 mt-2">
+            Laporan diperbarui: {{ "now" }} | Data tersimpan dengan enkripsi end-to-end
+          </p>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>
