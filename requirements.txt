@@ -1,8 +1,4 @@
 Flask
-Flask-Session
-PyMySQL
-cryptography
-midtransclient
 python-dotenv
 pandas
 numpy
@@ -12,3 +8,4 @@ joblib
 beautifulsoup4
 requests
 ddgs
+playwright

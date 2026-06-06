@@ -3,30 +3,27 @@ import time
 import random
 import re
 import math
+import base64
+import uuid
 import joblib
 import numpy as np
 import requests
 import pandas as pd
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
-from flask_session import Session
-import pymysql
-from werkzeug.security import generate_password_hash, check_password_hash
-import midtransclient
+from flask import Flask, render_template, request, jsonify, url_for
 from dotenv import load_dotenv
-from functools import wraps
 from bs4 import BeautifulSoup
 from scipy.sparse import hstack
 from urllib.parse import urlparse
+
+try:
+    from inference_sdk import InferenceHTTPClient
+except Exception:
+    InferenceHTTPClient = None
 
 load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
-
-# Konfigurasi Session untuk disimpan di server-side agar lebih aman
-app.config["SESSION_PERMANENT"] = False
-app.config["SESSION_TYPE"] = "filesystem"
-Session(app)
 
 # =============================================
 # ML MODEL LOADING
@@ -87,6 +84,12 @@ SCRAPER_HEADERS = {
     ),
 }
 
+ROBOFLOW_API_URL = os.getenv('ROBOFLOW_API_URL', 'https://serverless.roboflow.com')
+ROBOFLOW_API_KEY = os.getenv('ROBOFLOW_API_KEY', '')
+ROBOFLOW_WORKSPACE = os.getenv('ROBOFLOW_WORKSPACE', '')
+ROBOFLOW_WORKFLOW_ID = os.getenv('ROBOFLOW_WORKFLOW_ID', '')
+ROBOFLOW_IMAGE_DIR = os.path.join(os.path.dirname(__file__), 'static', 'generated', 'roboflow')
+
 def clean_text(text: str) -> str:
     text = str(text).lower()
     text = re.sub(r"\s+", " ", text)
@@ -125,6 +128,216 @@ def auto_scrape(url: str, timeout: int = 5) -> dict:
         print(f"[SCRAPE] Error: {e}")
     
     return result
+
+def capture_url_screenshot(url: str, timeout: int = 30000) -> dict:
+    """Capture screenshot halaman URL menggunakan headless browser."""
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception as exc:
+        return {'ok': False, 'error': f'playwright_unavailable: {exc}'}
+
+    os.makedirs(ROBOFLOW_IMAGE_DIR, exist_ok=True)
+    file_name = f"screenshot_{uuid.uuid4().hex}.png"
+    screenshot_path = os.path.join(ROBOFLOW_IMAGE_DIR, file_name)
+
+    try:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(
+                headless=True,
+                args=['--disable-gpu', '--no-sandbox'],
+            )
+            try:
+                page = browser.new_page(viewport={'width': 1440, 'height': 2400}, device_scale_factor=1)
+                page.goto(url, wait_until='load', timeout=timeout)
+                page.wait_for_timeout(1500)
+                page.screenshot(path=screenshot_path, full_page=True)
+            finally:
+                browser.close()
+
+        return {
+            'ok': True,
+            'path': screenshot_path,
+            'relative_path': os.path.relpath(screenshot_path, os.path.join(os.path.dirname(__file__), 'static')).replace('\\', '/'),
+        }
+    except Exception as exc:
+        return {'ok': False, 'error': str(exc)}
+
+def _normalize_prediction_item(item: dict) -> dict:
+    item = item or {}
+    bbox = item.get('bbox') if isinstance(item.get('bbox'), dict) else {}
+    class_name = item.get('class') or item.get('label') or item.get('name') or item.get('category') or item.get('title') or 'unknown'
+
+    return {
+        'class': str(class_name),
+        'confidence': float(item.get('confidence') or item.get('score') or item.get('probability') or 0.0),
+        'x': float(item.get('x', bbox.get('x', 0.0)) or 0.0),
+        'y': float(item.get('y', bbox.get('y', 0.0)) or 0.0),
+        'width': float(item.get('width', bbox.get('width', 0.0)) or 0.0),
+        'height': float(item.get('height', bbox.get('height', 0.0)) or 0.0),
+        'raw': item,
+    }
+
+def _extract_prediction_list(payload):
+    if isinstance(payload, list):
+        predictions = []
+        for item in payload:
+            if isinstance(item, dict):
+                nested = _extract_prediction_list(item)
+                if nested:
+                    predictions.extend(nested)
+                else:
+                    predictions.append(item)
+        return predictions
+
+    if not isinstance(payload, dict):
+        return []
+
+    predictions = []
+    for key in ('predictions', 'detections', 'objects'):
+        value = payload.get(key)
+        if isinstance(value, list):
+            predictions.extend([item for item in value if isinstance(item, dict)])
+        elif isinstance(value, dict):
+            predictions.extend(_extract_prediction_list(value))
+    if predictions:
+        return predictions
+
+    for value in payload.values():
+        if isinstance(value, (dict, list)):
+            nested = _extract_prediction_list(value)
+            if nested:
+                predictions.extend(nested)
+    return predictions
+
+
+def _extract_annotated_image_path(payload) -> dict:
+    def find_image_candidates(node):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key in ('output_image', 'annotated_image', 'visualization', 'image') and value:
+                    yield value
+                if isinstance(value, (dict, list)):
+                    yield from find_image_candidates(value)
+        elif isinstance(node, list):
+            for item in node:
+                yield from find_image_candidates(item)
+
+    for candidate in find_image_candidates(payload):
+        if isinstance(candidate, bytes):
+            image_bytes = candidate
+        elif isinstance(candidate, str):
+            if candidate.startswith('http://') or candidate.startswith('https://'):
+                return {'annotated_image_url': candidate, 'annotated_image_path': ''}
+            image_str = candidate
+            image_bytes = None
+            if image_str.startswith('data:') and ',' in image_str:
+                image_str = image_str.split(',', 1)[1]
+            try:
+                image_bytes = base64.b64decode(image_str)
+            except Exception:
+                image_bytes = None
+            if image_bytes is None:
+                # Support direct filesystem path returned by workflow
+                fs_path = os.path.expanduser(os.path.expandvars(image_str))
+                if os.path.exists(fs_path):
+                    rel_path = os.path.relpath(fs_path, os.path.join(os.path.dirname(__file__), 'static')).replace('\\', '/')
+                    return {'annotated_image_url': url_for('static', filename=rel_path), 'annotated_image_path': fs_path}
+                continue
+        else:
+            continue
+
+        try:
+            os.makedirs(ROBOFLOW_IMAGE_DIR, exist_ok=True)
+            file_name = f"annotated_{uuid.uuid4().hex}.png"
+            image_path = os.path.join(ROBOFLOW_IMAGE_DIR, file_name)
+            with open(image_path, 'wb') as image_file:
+                image_file.write(image_bytes)
+
+            return {
+                'annotated_image_url': url_for('static', filename=os.path.relpath(image_path, os.path.join(os.path.dirname(__file__), 'static')).replace('\\', '/')),
+                'annotated_image_path': image_path,
+            }
+        except Exception:
+            continue
+
+    return {'annotated_image_url': '', 'annotated_image_path': ''}
+
+def analyze_with_roboflow(url: str, screenshot_result: dict) -> dict:
+    """Kirim screenshot ke Roboflow untuk mendeteksi iklan judi online."""
+    if not screenshot_result.get('ok'):
+        return {
+            'enabled': False,
+            'error': screenshot_result.get('error', 'screenshot_failed'),
+            'gambling_detected': False,
+            'ad_count': 0,
+            'predictions': [],
+            'annotated_image_url': '',
+        }
+
+    if not InferenceHTTPClient or not ROBOFLOW_API_KEY or not ROBOFLOW_WORKSPACE or not ROBOFLOW_WORKFLOW_ID:
+        missing = []
+        if not InferenceHTTPClient:
+            missing.append('inference-sdk')
+        if not ROBOFLOW_API_KEY:
+            missing.append('ROBOFLOW_API_KEY')
+        if not ROBOFLOW_WORKSPACE:
+            missing.append('ROBOFLOW_WORKSPACE')
+        if not ROBOFLOW_WORKFLOW_ID:
+            missing.append('ROBOFLOW_WORKFLOW_ID')
+
+        return {
+            'enabled': False,
+            'error': f"roboflow_not_configured: {', '.join(missing)}",
+            'gambling_detected': False,
+            'ad_count': 0,
+            'predictions': [],
+            'annotated_image_url': '',
+        }
+
+    try:
+        client = InferenceHTTPClient(api_url=ROBOFLOW_API_URL, api_key=ROBOFLOW_API_KEY)
+        workflow_output = client.run_workflow(
+            workspace_name=ROBOFLOW_WORKSPACE,
+            workflow_id=ROBOFLOW_WORKFLOW_ID,
+            images={'image': screenshot_result['path']},
+            use_cache=True,
+        )
+
+        payload = workflow_output[0] if isinstance(workflow_output, list) and workflow_output else workflow_output
+        raw_predictions = _extract_prediction_list(payload)
+        normalized_predictions = [_normalize_prediction_item(item) for item in raw_predictions]
+        annotated_image_info = _extract_annotated_image_path(payload)
+
+        gambling_keywords = ('ad', 'advert', 'banner', 'promo', 'slot', 'casino', 'bet', 'judol', 'judi', 'togel', 'poker', 'gambling')
+        gambling_detected = bool(payload.get('gambling_detected')) if isinstance(payload, dict) else False
+        gambling_detected = gambling_detected or any(
+            any(keyword in str(pred.get('class', '')).lower() for keyword in gambling_keywords)
+            for pred in normalized_predictions
+        )
+
+        ad_count = payload.get('ad_count') if isinstance(payload, dict) and isinstance(payload.get('ad_count'), int) else len(normalized_predictions)
+        if not ad_count and normalized_predictions:
+            ad_count = len(normalized_predictions)
+
+        return {
+            'enabled': True,
+            'error': '',
+            'gambling_detected': gambling_detected,
+            'ad_count': ad_count,
+            'predictions': normalized_predictions,
+            'annotated_image_url': annotated_image_info.get('annotated_image_url', ''),
+            'annotated_image_path': annotated_image_info.get('annotated_image_path', ''),
+            'raw': payload,
+        }
+    except Exception as exc:
+        return {
+            'enabled': False,
+            'error': str(exc),
+            'gambling_detected': False,
+            'ad_count': 0,
+            'predictions': [],
+            'annotated_image_url': '',
+        }
 
 def build_ml_features(url: str, title: str = "", meta_description: str = "", triggered_signals: str = "") -> dict:
     """Build ML features identik dengan training.py"""
@@ -287,10 +500,11 @@ def normalize_prediction_label(label) -> str:
         return "safe"
     return label_text
 
-def build_actionable_insights(url: str, features: dict, label: str, confidence: float) -> dict:
+def build_actionable_insights(url: str, features: dict, label: str, confidence: float, roboflow: dict = None) -> dict:
     """Turn ML output into practical findings, anomalies, and next actions."""
     features = features or {}
     label = normalize_prediction_label(label)
+    roboflow = roboflow or {}
 
     indicators = []
     vulnerabilities = []
@@ -306,6 +520,8 @@ def build_actionable_insights(url: str, features: dict, label: str, confidence: 
     metadata_quality = float(features.get("metadata_quality", 0.0) or 0.0)
     https_enabled = int(features.get("https", 0) or 0)
     url_length = int(features.get("url_length", 0) or 0)
+    parsed = urlparse(url)
+    is_dot_com = parsed.netloc.lower().endswith('.com')
 
     risk_score = 0
 
@@ -386,6 +602,22 @@ def build_actionable_insights(url: str, features: dict, label: str, confidence: 
             "description": "The page exposes limited metadata, reducing trust signals for users and scanners.",
         })
 
+    if metadata_quality == 0.0:
+        risk_score += 20
+        indicators.append("Missing title and meta description")
+        vulnerabilities.append({
+            "title": "Missing Metadata",
+            "severity": "HIGH",
+            "domain": "Page Metadata",
+            "description": "Page has no title and no meta description, making it suspicious and prone to disguised gambling content.",
+        })
+        anomalies.append({
+            "url": url,
+            "risk": "Missing critical metadata",
+        })
+        if risk_score < 55:
+            risk_score = 55
+
     if not https_enabled:
         risk_score += 10
         indicators.append("HTTPS is not enabled")
@@ -403,6 +635,43 @@ def build_actionable_insights(url: str, features: dict, label: str, confidence: 
     if keyword_density >= 0.15:
         risk_score += 8
         indicators.append("Keyword density is unusually high")
+
+    # Apply YOLO/Roboflow visual detection risk boost
+    gambling_detected = bool(roboflow.get('gambling_detected'))
+    ad_count = int(roboflow.get('ad_count', 0) or 0)
+    if gambling_detected or ad_count > 0:
+        bonus = 30 if gambling_detected else min(20, ad_count * 4)
+        risk_score += bonus
+        indicators.append("Visual gambling ad detection by YOLO/Roboflow")
+        vulnerabilities.append({
+            "title": "Visual Gambling Ad Detection",
+            "severity": "HIGH" if gambling_detected else "MEDIUM",
+            "domain": "Visual Analysis",
+            "description": "Detected gambling or advertisement regions from the page screenshot using the visual model.",
+        })
+        anomalies.append({
+            "url": url,
+            "risk": "Detected visual gambling ad content",
+        })
+
+    if is_dot_com and metadata_quality < 1.0:
+        added = 16 if metadata_quality == 0.0 else 10
+        risk_score += added
+        indicators.append("Top-level .com with weak metadata")
+        vulnerabilities.append({
+            "title": "Weak Metadata on Common Domain",
+            "severity": "MEDIUM",
+            "domain": "Domain & Metadata",
+            "description": "Common .com domain with poor metadata increases the likelihood of disguised gambling content.",
+        })
+        if label == "safe":
+            indicators.append("Common domain with missing metadata raises suspicion")
+        if risk_score < 55:
+            risk_score = 55
+
+    if gambling_detected and label == "safe":
+        indicators.append("Safe label overridden by visual gambling detection")
+        recommendations.insert(0, "Review this page immediately because visual analysis found gambling ad content.")
 
     if label == "malicious" and risk_score >= 70:
         risk_level = "critical"
@@ -463,74 +732,18 @@ def build_actionable_insights(url: str, features: dict, label: str, confidence: 
         "recommendations": recommendations[:4],
     }
 
-# Fungsi helper koneksi database MySQL
-def get_db_connection():
-    return pymysql.connect(
-        host=os.getenv('DB_HOST'),
-        user=os.getenv('DB_USER'),
-        password=os.getenv('DB_PASSWORD'),
-        database=os.getenv('DB_NAME'),
-        cursorclass=pymysql.cursors.DictCursor
-    )
-
-# Inisialisasi Midtrans Snap Client
-snap = midtransclient.Snap(
-    is_production=False,
-    server_key=os.getenv('MIDTRANS_SERVER_KEY'),
-    client_key=os.getenv('MIDTRANS_CLIENT_KEY')
-)
-
-# --- MIDDLEWARE / DECORATORS ---
-def ensure_auth(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user' not in session:
-            url_param = request.args.get('url')
-            if url_param:
-                session['redirect_to'] = url_for('home', url=url_param)
-            else:
-                session['redirect_to'] = request.url
-            
-            flash("Silakan login terlebih dahulu untuk mengakses fitur ini.", "error")
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-def ensure_premium(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user' in session and session['user']['is_premium'] == 1:
-            return f(*args, **kwargs)
-        
-        flash("Fitur Cek Website membutuhkan akses Premium. Silakan lakukan pembayaran.", "warning")
-        return redirect(url_for('payment'))
-    return decorated_function
-
-
 # ==========================================
-# 3. BAGIAN ROUTE (Sudah Diperbaiki)
+# 3. BAGIAN ROUTE
 # ==========================================
 
 @app.route('/')
-@app.route('/dashboard')
-def dashboard():
-    # Menampilkan halaman landing / dashboard awal (Satu fungsi untuk 2 rute agar tidak duplikat)
-    current_user = session.get('user')
-    return render_template('dashboard.html', user=current_user)
-
 @app.route('/home')
 def home():
-    # Ambil data user yang disimpan saat login dari session
-    current_user = session.get('user') 
-    return render_template('home.html', user=current_user)
+    return render_template('home.html')
 
-# Pasang @ensure_auth dan @ensure_premium tepat di atas fungsi check_website
 @app.route('/check-website')
-@ensure_auth       # <--- Mengecek Login pertama kali
-@ensure_premium    # <--- Mengecek Premium setelahnya
 def check_website():
     target_url = request.args.get('url', '')
-    current_user = session.get('user')
     
     # Tambah https:// otomatis kalau belum ada
     if target_url and not target_url.startswith('http'):
@@ -539,9 +752,11 @@ def check_website():
     # Gunakan ML model untuk prediksi
     ml_result = predict_url(target_url) if target_url else {}
     normalized_label = normalize_prediction_label(ml_result.get('label', 'unknown'))
+    features = ml_result.get('features', {})
+    has_no_metadata = not bool(ml_result.get('title')) and not bool(ml_result.get('meta_description'))
     insights = build_actionable_insights(
         target_url,
-        ml_result.get('features', {}),
+        features,
         normalized_label,
         float(ml_result.get('confidence', 0.0) or 0.0),
     )
@@ -565,198 +780,57 @@ def check_website():
         'seoScore': max(0, 100 - risk_score),
         'loadTime': round(0.8 + (len(target_url) / 120 if target_url else 0), 2),
     }
-    
-    return render_template('result.html', result=result, user=current_user)
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    error = None
-    if request.method == 'POST':
-        email_or_username = request.form['emailOrUsername']
-        password = request.form['password']
-        
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cursor:
-                # Cek apakah username atau email ada di database
-                cursor.execute(
-                    "SELECT * FROM users WHERE email = %s OR username = %s", 
-                    (email_or_username, email_or_username)
-                )
-                user = cursor.fetchone()
-                
-                # JIKA USER BELUM TERDAFTAR (BELUM REGISTER)
-                if not user:
-                    flash("Akun belum terdaftar! Silakan buat akun baru terlebih dahulu.", "info")
-                    return redirect(url_for('register'))
-                
-                # Perbaikan pengambilan data variabel session menggunakan objek 'user' hasil fetch database
-                if check_password_hash(user['password'], password):
-                    session['user'] = {
-                        'id': user['id'],
-                        'username': user['username'],
-                        'email': user['email'],
-                        'is_premium': user['is_premium']
-                    }
-                    
-                    redirect_to = session.pop('redirect_to', url_for('home'))
-                    return redirect(redirect_to)
-                else:
-                    error = "Password yang Anda masukkan salah!"
-        finally:
-            conn.close()
-            
-    return render_template('login.html', error=error)
+    should_run_roboflow = (
+        normalized_label == 'malicious'
+        or risk_score >= 45
+        or int(features.get('judol_hits_total', 0) or 0) > 0
+        or (urlparse(target_url).netloc.lower().endswith('.com') and float(features.get('metadata_quality', 0.0) or 0.0) < 1.0)
+        or has_no_metadata
+    )
 
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    error = None
-    if request.method == 'POST':
-        username = request.form['username']
-        email = request.form['email']
-        password = request.form['password']
-        
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cursor:
-                # Cek apakah email sudah terdaftar
-                cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
-                if cursor.fetchone():
-                    error = "Email sudah terdaftar!"
-                else:
-                    # Hash password dan masukkan data user baru
-                    hashed_pwd = generate_password_hash(password)
-                    cursor.execute(
-                        "INSERT INTO users (username, email, password) VALUES (%s, %s, %s)",
-                        (username, email, hashed_pwd)
-                    )
-                    conn.commit()
-                    
-                    flash("Registrasi berhasil! Silakan login melalui menu di atas.", "success")
-                    return redirect(url_for('login'))
-        finally:
-            conn.close()
-            
-    return render_template('register.html', error=error)
-
-@app.route('/kembali')
-def kembali():
-    if 'user' in session:
-        return redirect(url_for('home'))
-    else:
-        return redirect(url_for('dashboard'))
-
-@app.route('/logout')
-def logout():
-    # 1. Hapus session 'user'
-    session.pop('user', None) 
-    session.clear()
-
-    # 2. Kembalikan user ke halaman dashboard sesuai permintaan Anda
-    return redirect(url_for('dashboard'))
-
-@app.route('/payment')
-@ensure_auth
-def payment():
-    if session['user']['is_premium'] == 1:
-        return redirect(url_for('home'))
-    return render_template('payment.html', user=session['user'], clientKey=os.getenv('MIDTRANS_CLIENT_KEY'))
-
-@app.route('/payment/token', methods=['POST'])
-@ensure_auth
-def payment_token():
-    data = request.json or {}
-    chosen_package = data.get('package', 'basic')
-    
-    package_prices = {
-        'basic': 25000,
-        'pro': 50000,
-        'custom': 150000
-    }
-    
-    amount = package_prices.get(chosen_package, 25000)
-    order_id = f"{chosen_package.upper()}-{int(time.time())}-{session['user']['id']}"
-    
-    param = {
-        "transaction_details": {
-            "order_id": order_id,
-            "gross_amount": amount
-        },
-        "credit_card": {"secure": True},
-        "enabled_payments": [
-            "credit_card", "bca_va", "bni_va", "bri_va", "mandiri_va", 
-            "permata_va", "gopay", "shopeepay", "qris", "alfamart", "indomaret"
-        ],
-        "customer_details": {
-            "username": session['user']['username'],
-            "email": session['user']['email']
+    if target_url and should_run_roboflow:
+        screenshot_result = capture_url_screenshot(target_url)
+        roboflow_result = analyze_with_roboflow(target_url, screenshot_result)
+        result['screenshot'] = {
+            'enabled': screenshot_result.get('ok', False),
+            'error': screenshot_result.get('error', ''),
+            'path': screenshot_result.get('relative_path', ''),
         }
-    }
+        result['roboflow'] = roboflow_result
+        insights = build_actionable_insights(
+            target_url,
+            features,
+            normalized_label,
+            float(ml_result.get('confidence', 0.0) or 0.0),
+            roboflow_result,
+        )
+        risk_score = insights['risk_score']
+        result.update({
+            'risk_score': risk_score,
+            'risk_level': insights['risk_level'],
+            'analysis_indicators': insights['indicators'],
+            'vulnerabilities': insights['vulnerabilities'],
+            'anomalies': insights['anomalies'],
+            'recommendations': insights['recommendations'],
+            'seoScore': max(0, 100 - risk_score),
+        })
+    else:
+        result['screenshot'] = {
+            'enabled': False,
+            'error': '',
+            'path': '',
+        }
+        result['roboflow'] = {
+            'enabled': False,
+            'error': '',
+            'gambling_detected': False,
+            'ad_count': 0,
+            'predictions': [],
+            'annotated_image_url': '',
+        }
     
-    try:
-        transaction = snap.create_transaction(param)
-        return jsonify({"token": transaction['token']})
-    except Exception as e:
-        print(e)
-        return jsonify({"error": "Gagal membuat token pembayaran"}), 500
-
-@app.route('/payment/success', methods=['POST'])
-@ensure_auth
-def payment_success_handler():
-    data = request.json
-    user_id = session['user']['id']
-    order_id = data.get('order_id', '')
-    
-    package_type = order_id.split('-')[0].lower() if order_id else 'basic'
-    
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                """INSERT INTO payments (user_id, transaction_id, package_type, payment_type, gross_amount, transaction_status) 
-                   VALUES (%s, %s, %s, %s, %s, %s)""",
-                (user_id, data['transaction_id'], package_type, data['payment_type'], data['gross_amount'], data['transaction_status'])
-            )
-            
-            cursor.execute(
-                "UPDATE users SET is_premium = 1, package_type = %s WHERE id = %s", 
-                (package_type, user_id)
-            )
-            conn.commit()
-            
-            session['user']['is_premium'] = 1
-            session['user']['package_type'] = package_type
-            session.modified = True
-            
-            return jsonify({"status": "success"})
-    except Exception as e:
-        print(e)
-        return jsonify({"error": "Gagal memperbarui status premium"}), 500
-    finally:
-        conn.close()
-
-@app.route('/payment-success')
-@ensure_auth
-def payment_success_page():
-    current_user = session.get('user')
-    return render_template('success.html', user=current_user)
-
-@app.route('/forgot-password', methods=['GET', 'POST'])
-def forgot_password():
-    if request.method == 'POST':
-        email = request.form.get('email')
-        flash(f"Link reset password telah dikirim ke {email} (Simulasi)", "info")
-        return redirect(url_for('login'))
-        
-    return "<h3>Halaman Fitur Reset Password (Dapat dikembangkan menggunakan SMTP Email)</h3>"   
-
-@app.route('/profile')
-def profile():
-    current_user = session.get('user') 
-    if not current_user:
-        return redirect(url_for('login'))
-        
-    return render_template('profile.html', user=current_user) 
+    return render_template('result.html', result=result)
 
 if __name__ == '__main__':
     app.run(port=3000, debug=True)

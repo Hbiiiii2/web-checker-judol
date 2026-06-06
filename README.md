@@ -9,10 +9,18 @@ Fitur
 - Halaman pembayaran dan verifikasi: payment, auth-payment, success
 - Halaman hasil pemeriksaan: result
 - Integrasi folder `ML/` dan `training.py` untuk kebutuhan machine learning
+- Screenshot otomatis halaman yang terindikasi judol lalu dikirim ke Roboflow untuk deteksi area iklan/bannner judi
 
 Persyaratan
 - Python 3.8+ (direkomendasikan)
 - Dependensi tercantum di `requirements.txt`
+- Playwright Chromium untuk screenshot backend: `python -m playwright install chromium`
+
+Environment variables tambahan untuk fitur Roboflow
+- `ROBOFLOW_API_KEY`
+- `ROBOFLOW_WORKSPACE`
+- `ROBOFLOW_WORKFLOW_ID`
+- Opsional: `ROBOFLOW_API_URL` jika memakai endpoint khusus
 
 Instalasi (Windows / PowerShell)
 ```powershell
@@ -62,6 +70,7 @@ Penggunaan singkat
 2. Akses dashboard untuk melakukan pemeriksaan atau mengelola data.
 3. Gunakan halaman `payment.html` untuk proses pembayaran (jika diaktifkan).
 4. Hasil pemeriksaan ditampilkan pada `result.html`.
+5. Jika URL terindikasi judol, aplikasi otomatis membuat screenshot dan mengirimnya ke workflow Roboflow untuk menandai area iklan/bannner yang mencurigakan.
 
 Catatan development
 - Jika Anda mengembangkan bagian ML, cek `training.py` dan folder `ML/`.
