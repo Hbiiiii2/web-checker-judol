@@ -7,5 +7,4 @@ scipy
 joblib
 beautifulsoup4
 requests
-ddgs
 playwright
